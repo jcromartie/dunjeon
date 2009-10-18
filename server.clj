@@ -16,7 +16,7 @@
 (def prompt " > ")
 
 (defn game-repl
-  "runs a game prompt"
+  "runs a game loop on the given in/out streams"
   [in out]
   (binding [*ns* (create-ns 'mud)
 	    *warn-on-reflection* false
@@ -31,5 +31,16 @@
 	  (flush)
 	  (recur (. r readLine)))))))
 
-(defn -main
-  (println "Thanks for playing"))
+(defn handle-game-client
+  "handles client socket"
+  [client]
+  (game-repl (. client getInputStream) (. client getOutputStream)))
+
+(defn main-
+  []
+  (let [port (nth *command-line-args* 0)]
+    (def server (create-server (Integer. port) handle-game-client))
+    (println "Server started on port" port)
+    (println "Thanks for playing")))
+
+(main-)
