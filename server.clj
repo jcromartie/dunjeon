@@ -10,7 +10,10 @@
   "creates a server on port, passing accepted sockets to accept-socket"
   [port accept-socket]
   (let [server-socket (ServerSocket. port)]
-    (on-thread #(accept-socket (. server-socket accept)))
+    (on-thread #((loop
+		     [client-socket (. server-socket accept)]
+		   (accept-socket client-socket)
+		   (recur (. server-socket accept)))))
     server-socket))
 
 (def prompt " > ")
@@ -29,7 +32,7 @@ You can't do anything right now.")
 	  (print prompt)
 	  (flush)
       (loop [line (. r readLine)]
-	(when-not (= line "quit")
+	(when-not (or (= line nil) (= line "quit"))
 	  (print "Thanks for writing" (prn-str line))
 	  (print prompt)
 	  (flush)
@@ -38,7 +41,7 @@ You can't do anything right now.")
 (defn handle-game-client
   "handles client socket"
   [client]
-  (game-repl (. client getInputStream) (. client getOutputStream)))
+  (on-thread #(game-repl (. client getInputStream) (. client getOutputStream))))
 
 (defn local-game-client
   "runs game client locally on stdin/stdout"
