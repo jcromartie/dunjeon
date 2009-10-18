@@ -14,6 +14,8 @@
     server-socket))
 
 (def prompt " > ")
+(def intro "Welcome to dunjeon. Type quit to quit at any time.
+You can't do anything right now.")
 
 (defn game-repl
   "runs a game loop on the given in/out streams"
@@ -23,10 +25,12 @@
 	    *out* (OutputStreamWriter. out)]
     (let [eof (Object.)
 	  r (BufferedReader. (InputStreamReader. in))]
+          (println intro)
 	  (print prompt)
+	  (flush)
       (loop [line (. r readLine)]
 	(when-not (= line "quit")
-	  (println "Thanks for writing" line)
+	  (print "Thanks for writing" (prn-str line))
 	  (print prompt)
 	  (flush)
 	  (recur (. r readLine)))))))
@@ -36,11 +40,20 @@
   [client]
   (game-repl (. client getInputStream) (. client getOutputStream)))
 
+(defn local-game-client
+  "runs game client locally on stdin/stdout"
+  []
+  (game-repl System/in System/out))
+
 (defn main-
   []
   (let [port (nth *command-line-args* 0)]
-    (def server (create-server (Integer. port) handle-game-client))
-    (println "Server started on port" port)
-    (println "Thanks for playing")))
+    (if
+	(= port "local")
+      (local-game-client)
+      (do
+	(def server (create-server port handle-game-client))
+	(println "Server started on port" port)
+	(println "Thanks for playing")))))
 
 (main-)
