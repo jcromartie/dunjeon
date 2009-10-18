@@ -52,7 +52,7 @@ You can't do anything right now.")
 	(= port "local")
       (local-game-client)
       (do
-	(def server (create-server port handle-game-client))
+	(def server (create-server (Integer. port) handle-game-client))
 	(println "Server started on port" port)
 	(println "Thanks for playing")))))
 
