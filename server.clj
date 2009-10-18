@@ -28,20 +28,18 @@ You can't do anything right now.")
 	    *out* (OutputStreamWriter. out)]
     (let [eof (Object.)
 	  r (BufferedReader. (InputStreamReader. in))]
-          (println intro)
-	  (print prompt)
-	  (flush)
+          (println intro) (print prompt) (flush)
       (loop [line (. r readLine)]
 	(when-not (or (= line nil) (= line "quit"))
-	  (print "Thanks for writing" (prn-str line))
-	  (print prompt)
-	  (flush)
+	  (print "Thanks for writing" (prn-str line)) (print prompt) (flush)
 	  (recur (. r readLine)))))))
 
 (defn handle-game-client
   "handles client socket"
   [client]
-  (on-thread #(game-repl (. client getInputStream) (. client getOutputStream))))
+  (on-thread #((do
+		 (game-repl (. client getInputStream) (. client getOutputStream))
+		 (. client close)))))
 
 (defn local-game-client
   "runs game client locally on stdin/stdout"
@@ -51,12 +49,10 @@ You can't do anything right now.")
 (defn main-
   []
   (let [port (nth *command-line-args* 0)]
-    (if
-	(= port "local")
+    (if (= port "local")
       (local-game-client)
       (do
 	(def server (create-server (Integer. port) handle-game-client))
-	(println "Server started on port" port)
-	(println "Thanks for playing")))))
+	(println "Server started on port" port)))))
 
 (main-)
