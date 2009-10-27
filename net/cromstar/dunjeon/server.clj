@@ -1,3 +1,5 @@
+(ns net.cromstar.dunjeon)
+
 (import '(java.net Socket ServerSocket))
 (import '(java.io OutputStreamWriter InputStreamReader BufferedReader))
 
@@ -54,5 +56,3 @@ You can't do anything right now.")
       (do
 	(def server (create-server (Integer. port) handle-game-client))
 	(println "Server started on port" port)))))
-
-(main-)

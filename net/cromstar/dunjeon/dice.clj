@@ -1,3 +1,5 @@
+(ns net.cromstar.dunjeon)
+
 (defn roll
   "Rolls an n-sided die"
   [n]
@@ -16,8 +18,3 @@
 (def positive-integers (iterate inc 0))
 (def evens (iterate (partial + 2) 2))
 (def odds (iterate (partial + 2) 1))
-
-(def fib-seq
-     ((fn rfib [a b]
-	(cons a (lazy-seq (rfib b (+ a b)))))
-      0 1))
