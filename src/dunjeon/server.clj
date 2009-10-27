@@ -1,4 +1,5 @@
-(ns net.cromstar.dunjeon.server)
+(ns dunjeon.server
+  (:use (dunjeon [dice])))
 
 (import '(java.net Socket ServerSocket))
 (import '(java.io OutputStreamWriter InputStreamReader BufferedReader))
@@ -57,4 +58,4 @@ You can't do anything right now.")
 	(def server (create-server (Integer. port) handle-game-client))
 	(println "Server started on port" port)))))
 
-(println (roll 5))
+(dorun (take 5 (repeatedly #(println (aced-roll 4)))))
