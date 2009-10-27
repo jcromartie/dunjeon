@@ -1,4 +1,4 @@
-(ns net.cromstar.dunjeon)
+(ns net.cromstar.dunjeon.dice)
 
 (defn roll
   "Rolls an n-sided die"
