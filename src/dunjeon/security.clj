@@ -27,11 +27,6 @@
   [x hash-fn]
   (hash-fn (pr-str x)))
 
-(defn new-object
-  "Returns a new object with a unique id"
-  []
-  {:id (uuid)})
-
 (def *token-key* :obj-hash)
 
 (defn sign
