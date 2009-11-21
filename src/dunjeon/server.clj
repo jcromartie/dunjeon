@@ -77,7 +77,7 @@ Comands are:
 (defn create-server
   "creates a server on port, passing accepted sockets to accept-socket"
   [port accept-socket-fn]
-  (let [server { :socket (ServerSocket. port) :players (ref []) }]
+  (let [server { :socket (ServerSocket. port) :players (ref #{}) }]
     (on-thread
      (loop
 	   [client-socket (. (:socket server) accept)]
