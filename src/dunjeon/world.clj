@@ -7,10 +7,12 @@
   `(ns ~realm-name (:use dunjeon.world)))
 
 (defn str-match
+  "Returns if s2 occurs in s1 (case-insensitive)"
   [s1 s2]
   (<= 0 (.indexOf (.toLowerCase s1) (.toLowerCase s2))))
 
 (defn find-exit
+  "Returns the first matching exit name for the query"
   [room query]
   (let [query-str (str query)
 	exit (first
@@ -20,6 +22,7 @@
       (key exit))))
 
 (defn dest
+  "Returns the desination id for an exit"
   [room exit]
   (-> room :exits exit))
 
