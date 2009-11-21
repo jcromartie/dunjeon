@@ -1,6 +1,8 @@
 (ns dunjeon.security
   (:import java.security.MessageDigest java.util.UUID))
 
+(def *salt* "THIS+IS+YR+SALT")
+
 (defn uuid
   "Returns a random UUID"
   []
@@ -20,7 +22,7 @@
 
 (defn- salted-hash
   [s]
-  (sha-hash (str "your salt here" s)))
+  (sha-hash (str *salt* s)))
 
 (defn- object-token
   "Creates security token for a given object"
