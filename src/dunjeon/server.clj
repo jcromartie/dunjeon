@@ -15,14 +15,14 @@
   (remove *stop-words* x))
 
 (defn find-room
-  "Find a room by keyword in the current realm for the given session"
+  "Find a room by keyword in the current realm for the given session ref"
   [session k]
-  (let [room-var (ns-resolve (:realm session) (symbol (name k)))]
+  (let [room-var (ns-resolve (:realm @session) (symbol (name k)))]
     (when room-var
       (deref room-var))))
 
 (defmulti command
-  "Process a session and command list"
+  "Process a session ref and command list"
   (fn [session [cmd args]] cmd))
 
 (defmethod command :default
@@ -35,17 +35,18 @@
   [session [_ target]]
   (if target
     (println "Sorry, I can't do that yet.")
-    (describe (:room session))))
+    (describe (:room @session))))
 
 (defmethod command 'go
   [session [cmd exit-query]]
   (println "go =>" cmd exit-query)
   (if exit-query
-    (let [room (:room session)
+    (let [room (:room @session)
 	  exit (find-exit room exit-query)
 	  next-room (find-room session (dest room exit))]
       (if next-room
-	(assoc session :room next-room)
+	(dosync
+	 (alter session assoc :room next-room))
 	(println "You can't go that way")))
     (println "where, exactly?")))
 
@@ -58,65 +59,75 @@ Comands are:
   commands"))
 
 (defn make-session
-  "Makes a new session in the town square"
-  []
-  {:realm (find-ns 'town), :room town/town-square})
+  "Makes a new session ref with given streams in the town square"
+  [in out]
+  (ref (hash-map
+	:realm (find-ns 'town)
+	:room town/town-square
+	:in in
+	:out out)))
 
-(defn on-thread
+(defmacro on-thread
   "runs f on a new thread"
-  [f]
-  (doto (Thread. f) (.start)))
+  [& exprs]
+  `(let [thread# (Thread. #(do ~@exprs))]
+     (.start thread#)
+     thread#))
 
 (defn create-server
   "creates a server on port, passing accepted sockets to accept-socket"
-  [port accept-socket]
-  (let [server-socket (ServerSocket. port)]
+  [port accept-socket-fn]
+  (let [server { :socket (ServerSocket. port) :players (ref []) }]
     (on-thread
-     #((loop
-	   [client-socket (. server-socket accept)]
-	 (accept-socket client-socket)
-	 (recur (. server-socket accept)))))
-    server-socket))
+     (loop
+	   [client-socket (. (:socket server) accept)]
+	 (accept-socket-fn client-socket server)
+	 (recur (. (:socket server) accept))))
+    server))
 
 (defn prompt
   [session]
-  (print (-> session :room :name) "> "))
+  (print (-> @session :room :name) "> "))
 
 (def intro "Welcome to dunjeon. Type quit to quit at any time.")
 
 (defn game-repl
-  "runs a game loop on the given in/out streams"
-  [in out session]
+  "runs a game loop on the given session ref's streams"
+  [session]
   (binding [*warn-on-reflection* false
-	    *out* (OutputStreamWriter. out)]
+	    *out* (OutputStreamWriter. (:out @session))]
     (let [eof (Object.)
-	  r (BufferedReader. (InputStreamReader. in))]
+	  r (BufferedReader. (InputStreamReader. (:in @session)))]
       (println intro)
       (prompt session)
       (flush)
-      (loop [line (. r readLine) session session]
+      (loop [line (. r readLine)]
 	(when-not (or (= line nil) (= line "quit"))
-	  (let [line-list (try (read-string (str "(" line ")")) (catch Exception err nil))
-		result (try (command session line-list) (catch Exception e (println "Oops" e)))]
-	    (if result
-	      (do
-		(prompt result) (flush)
-		(recur (. r readLine) result))
-	      (do
-		(prompt session) (flush)
-		(recur (. r readLine) session)))))))))
+	  (let [line-list (try (read-string (str "(" line ")")) (catch Exception err nil))]
+	    (try
+	     (command session line-list)
+	     (catch Exception e (println "Oops" e)))
+	    (prompt session) (flush)
+	    (recur (. r readLine))))))))
 
-(defn handle-game-client
+(defn handle-client-connect
   "handles client socket"
-  [client]
-  (on-thread #((do
-		 (game-repl (. client getInputStream) (. client getOutputStream))
-		 (. client close)))))
+  [client-socket server]
+  (let [in (.getInputStream client-socket)
+	out (.getOutputStream client-socket)
+	session (make-session in out)]
+    (dosync
+     (alter (:players server) conj session))
+    (on-thread (do
+		 (game-repl session)
+		 (.close client-socket)
+		 (dosync
+		  (alter (:players server) disj session))))))
 
 (defn local-game
   "runs game client locally on stdin/stdout"
   []
-  (game-repl System/in System/out (make-session)))
+  (game-repl (make-session System/in System/out)))
 
 (defn main-
   []
@@ -124,5 +135,5 @@ Comands are:
     (if (= port "local")
       (local-game)
       (do
-	(def server (create-server (Integer. port) handle-game-client))
+	(def server (create-server (Integer. port) handle-client-connect))
 	(println "Server started on port" port)))))
