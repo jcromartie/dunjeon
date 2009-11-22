@@ -11,6 +11,14 @@
   [s1 s2]
   (<= 0 (.indexOf (.toLowerCase s1) (.toLowerCase s2))))
 
+(defn find-room-in-realm
+  "Find a room by keyword in the current realm for the given session ref"
+  [realm id]
+  (when id
+    (let [room-var (ns-resolve realm (symbol (name id)))]
+      (when room-var
+	(deref room-var)))))
+
 (defn find-exit
   "Returns the first matching exit name for the query"
   [room query]
@@ -24,7 +32,7 @@
 (defn dest
   "Returns the desination id for an exit"
   [room exit]
-  (-> room :exits exit))
+  (get (:exits room) exit))
 
 (defmacro room
   [id room-name desc & exits]
@@ -43,6 +51,5 @@
 
 (defn describe
   [room]
-  (println (:name room))
   (println (:desc room))
   (dorun (for [exit (:exits room)] (println "  " (name (key exit)) ": " (name (val exit))))))

@@ -1,25 +1,25 @@
 (ns dunjeon.server
-  (:use [dunjeon world]))
+  (:use [dunjeon util world nanny]))
 
 (import '(java.net Socket ServerSocket))
 (import '(java.io OutputStreamWriter InputStreamReader BufferedReader))
 
+; the only default area
 (load-realm "town")
 
-(def *stop-words*
-     '#{in with at into from to of a the on in over})
+(defn reload
+  "reloads major portions of system"
+  []
+  (use '(dunjeon util world nanny server) :reload))
 
-(defn trim-stop-words
-  "Trims stop words from symbol list x"
-  [x]
-  (remove *stop-words* x))
+(defn current-room
+  [session]
+  (last (:history @session)))
 
 (defn find-room
   "Find a room by keyword in the current realm for the given session ref"
-  [session k]
-  (let [room-var (ns-resolve (:realm @session) (symbol (name k)))]
-    (when room-var
-      (deref room-var))))
+  [session id]
+  (find-room-in-realm (:realm @session) id))
 
 (defmulti command
   "Process a session ref and command list"
@@ -35,20 +35,24 @@
   [session [_ target]]
   (if target
     (println "Sorry, I can't do that yet.")
-    (describe (:room @session))))
+    (describe (current-room session))))
 
 (defmethod command 'go
   [session [cmd exit-query]]
-  (println "go =>" cmd exit-query)
   (if exit-query
-    (let [room (:room @session)
+    (let [room (current-room session)
 	  exit (find-exit room exit-query)
 	  next-room (find-room session (dest room exit))]
       (if next-room
 	(dosync
-	 (alter session assoc :room next-room))
+	 (println "heading to the" (name exit))
+	 (alter session assoc :history (conj (:history @session) next-room)))
 	(println "You can't go that way")))
     (println "where, exactly?")))
+
+(defmethod command 'history
+  [session _]
+  (println (map :name (:history @session))))
 
 (defmethod command 'commands
   [session _]
@@ -63,18 +67,11 @@ Comands are:
   [in out]
   (ref (hash-map
 	:realm (find-ns 'town)
-	:room town/town-square
-	:in in
-	:out out)))
+	:history [town/town-square]
+	:in (BufferedReader. (InputStreamReader. in))
+	:out (OutputStreamWriter. out))))
 
-(defmacro on-thread
-  "runs f on a new thread"
-  [& exprs]
-  `(let [thread# (Thread. #(do ~@exprs))]
-     (.start thread#)
-     thread#))
-
-(defn create-server
+(defn make-server
   "creates a server on port, passing accepted sockets to accept-socket"
   [port accept-socket-fn]
   (let [server { :socket (ServerSocket. port) :players (ref #{}) }]
@@ -85,30 +82,25 @@ Comands are:
 	 (recur (. (:socket server) accept))))
     server))
 
-(defn prompt
-  [session]
-  (print (-> @session :room :name) "> "))
-
 (def intro "Welcome to dunjeon. Type quit to quit at any time.")
 
 (defn game-repl
   "runs a game loop on the given session ref's streams"
   [session]
   (binding [*warn-on-reflection* false
-	    *out* (OutputStreamWriter. (:out @session))]
-    (let [eof (Object.)
-	  r (BufferedReader. (InputStreamReader. (:in @session)))]
-      (println intro)
-      (prompt session)
-      (flush)
-      (loop [line (. r readLine)]
-	(when-not (or (= line nil) (= line "quit"))
-	  (let [line-list (try (read-string (str "(" line ")")) (catch Exception err nil))]
-	    (try
-	     (command session line-list)
-	     (catch Exception e (println "Oops" e)))
-	    (prompt session) (flush)
-	    (recur (. r readLine))))))))
+	    *out* (:out @session)
+	    *in* (:in @session)]
+    (println intro)
+    (nanny session)
+    (loop [line (prompt "Welcome to the Town Square")]
+      (when-not (or (= line nil) (= line "quit"))
+	(let [line-list (try (read-string (str "(" line ")")) (catch Exception err nil))]
+	  (try
+	   (command session line-list)
+	   (catch Exception e
+	     (println "Oops...")
+	     (.printStackTrace e)))
+	  (recur (prompt (:name (current-room session)))))))))
 
 (defn handle-client-connect
   "handles client socket"
@@ -135,5 +127,5 @@ Comands are:
     (if (= port "local")
       (local-game)
       (do
-	(def server (create-server (Integer. port) handle-client-connect))
+	(def *main-server* (make-server (Integer. port) handle-client-connect))
 	(println "Server started on port" port)))))
