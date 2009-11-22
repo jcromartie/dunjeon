@@ -1,15 +1,10 @@
 (ns dunjeon.world
-  (:use dunjeon.security dunjeon.dice))
+  (:use dunjeon.util))
 
 (defmacro realm
   "Sets the current realm to name"
   [realm-name]
   `(ns ~realm-name (:use dunjeon.world)))
-
-(defn str-match
-  "Returns if s2 occurs in s1 (case-insensitive)"
-  [s1 s2]
-  (<= 0 (.indexOf (.toLowerCase s1) (.toLowerCase s2))))
 
 (defn find-room-in-realm
   "Find a room by keyword in the current realm for the given session ref"
