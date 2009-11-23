@@ -1,4 +1,4 @@
-(ns dunjeon.security
+(ns dunjeon.crypto
   (:import java.security.MessageDigest java.util.UUID))
 
 (def *salt* "THIS+IS+YR+SALT")
