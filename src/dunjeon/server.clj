@@ -12,37 +12,42 @@
   []
   (use '(dunjeon util world nanny server) :reload))
 
+(defn get-room
+  "Resolves and derefs the room identified by symbol room-sym"
+  [room-sym]
+  (deref (resolve room-sym)))
+
 (defn current-room
   [session]
-  (last (:history @session)))
+  (get-room (last (:history @session))))
 
-(defn find-room
-  "Find a room by keyword in the current realm for the given session ref"
-  [session id]
-  (find-room-in-realm (:realm @session) id))
+(defn broadcast
+  [server msg]
+  (doseq [player @(:players server)]
+    (println player)))
 
 (defmulti command
   "Process a session ref and command list"
-  (fn [session [cmd args]] cmd))
+  (fn [server session [cmd args]] cmd))
 
 (defmethod command :default
   ; search for the cmd
-  [session [query]]
-  (command session (list 'go query)))
+  [server session [query]]
+  (command server session (list 'go query)))
 
 (defmethod command 'look
   ; look at target, or at the current room
-  [session [_ target]]
+  [_ session [_ target]]
   (if target
     (println "Sorry, I can't do that yet.")
     (describe (current-room session))))
 
 (defmethod command 'go
-  [session [cmd exit-query]]
+  [server session [cmd exit-query]]
   (if exit-query
     (let [room (current-room session)
 	  exit (find-exit room exit-query)
-	  next-room (find-room session (dest room exit))]
+	  next-room (dest room exit)]
       (if next-room
 	(dosync
 	 (println "heading to the" (name exit))
@@ -51,11 +56,12 @@
     (println "where, exactly?")))
 
 (defmethod command 'history
-  [session _]
-  (println (map :name (:history @session))))
+  [_ session _]
+  (let [room-names (map :name (map get-room (:history @session)))]
+    (println (reduce #(str %1 " -> " %2) room-names))))
 
 (defmethod command 'commands
-  [session _]
+  [_ session _]
   (println "
 Comands are:
   look [what]
@@ -67,26 +73,15 @@ Comands are:
   [in out]
   (ref (hash-map
 	:realm (find-ns 'town)
-	:history [town/town-square]
+	:history ['town/town-square]
 	:in (BufferedReader. (InputStreamReader. in))
 	:out (OutputStreamWriter. out))))
-
-(defn make-server
-  "creates a server on port, passing accepted sockets to accept-socket"
-  [port accept-socket-fn]
-  (let [server { :socket (ServerSocket. port) :players (ref #{}) }]
-    (on-thread
-     (loop
-	   [client-socket (. (:socket server) accept)]
-	 (accept-socket-fn client-socket server)
-	 (recur (. (:socket server) accept))))
-    server))
 
 (def intro "Welcome to dunjeon. Type quit to quit at any time.")
 
 (defn game-repl
   "runs a game loop on the given session ref's streams"
-  [session]
+  [server session]
   (binding [*warn-on-reflection* false
 	    *out* (:out @session)
 	    *in* (:in @session)]
@@ -96,7 +91,7 @@ Comands are:
       (when-not (or (= line nil) (= line "quit"))
 	(let [line-list (try (read-string (str "(" line ")")) (catch Exception err nil))]
 	  (try
-	   (command session line-list)
+	   (command server session line-list)
 	   (catch Exception e
 	     (println "Oops...")
 	     (.printStackTrace e)))
@@ -111,10 +106,21 @@ Comands are:
     (dosync
      (alter (:players server) conj session))
     (on-thread (do
-		 (game-repl session)
+		 (game-repl server session)
 		 (.close client-socket)
 		 (dosync
 		  (alter (:players server) disj session))))))
+
+(defn make-server
+  "creates a server on port, passing accepted sockets to accept-socket"
+  [port]
+  (let [server { :socket (ServerSocket. port) :players (ref #{}) }]
+    (on-thread
+     (loop
+	   [client-socket (. (:socket server) accept)]
+	 (handle-client-connect client-socket server)
+	 (recur (. (:socket server) accept))))
+    server))
 
 (defn local-game
   "runs game client locally on stdin/stdout"

@@ -6,14 +6,6 @@
   [realm-name]
   `(ns ~realm-name (:use dunjeon.world)))
 
-(defn find-room-in-realm
-  "Find a room by keyword in the current realm for the given session ref"
-  [realm id]
-  (when id
-    (let [room-var (ns-resolve realm (symbol (name id)))]
-      (when room-var
-	(deref room-var)))))
-
 (defn find-exit
   "Returns the first matching exit name for the query"
   [room query]
@@ -29,6 +21,15 @@
   [room exit]
   (get (:exits room) exit))
 
+(defn qualify-sym
+  "fully qualifies sym if it is a sym and if it doesn't specify a ns"
+  [sym]
+  (if (symbol? sym)
+    (if (namespace sym)
+      sym
+      (symbol (name (ns-name *ns*)) (name sym)))
+    sym))
+
 (defmacro room
   [id room-name desc & exits]
   `(def ~id
@@ -37,7 +38,7 @@
 	 :id (keyword (name '~id))
 	 :name ~room-name
 	 :desc ~desc
-	 :exits (hash-map ~@exits))))
+	 :exits (apply hash-map (map qualify-sym (quote (~@exits)))))))
 
 (defn load-realm
   [realm-name]
