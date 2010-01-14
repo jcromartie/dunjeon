@@ -20,7 +20,8 @@
 
 (room sewer-hub
       "Sewer Hub"
-      "A black pit seems to descend forever in the center of the central point of the sewer system here. Branches extend in all directions."
+      "A black pit seems to descend forever in the center of the central
+point of the sewer system here. Branches extend in all directions."
       :north sewers-north
       :south sewers
       :east sewers-east
@@ -29,5 +30,7 @@
 
 (room sewers-south
       "Sewers, South"
-      "(Mostly) water pours out of a large grating at the end of the pipe here. It looks like a person could squeeze through"
+      "(Mostly) water pours out of a large grating at the end of the pipe here.
+It looks like a person could squeeze through"
+      :north sewers
       :south forest/sewer-output)

@@ -22,7 +22,16 @@
   (flush)
   (read-line))
 
-(defn str-match
-  "Returns if s2 occurs in s1 (case-insensitive)"
+(defn starts-with
+  "Returns if s1 starts with s2, case-insensitive"
   [s1 s2]
-  (<= 0 (.indexOf (.toLowerCase s1) (.toLowerCase s2))))
+  (.startsWith (.toLowerCase s1) (.toLowerCase s2)))
+
+(defn qualify-sym
+  "fully qualifies sym if it is a sym and if it doesn't specify a ns"
+  [sym]
+  (if (symbol? sym)
+    (if (namespace sym)
+      sym
+      (symbol (name (ns-name *ns*)) (name sym)))
+    sym))

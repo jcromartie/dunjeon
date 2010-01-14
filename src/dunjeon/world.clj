@@ -10,27 +10,21 @@
   "Returns the first matching exit name for the query"
   [room query]
   (let [query-str (str query)
-	exit (first
-	      (filter (fn [[k _]] (str-match (name k) query-str))
-		      (:exits room)))]
+	exit (first (filter #(starts-with % query-str) (map name (-> room :exits keys))))]
     (when exit
-      (key exit))))
+      (keyword exit))))
 
 (defn dest
   "Returns the desination id for an exit"
   [room exit]
   (get (:exits room) exit))
 
-(defn qualify-sym
-  "fully qualifies sym if it is a sym and if it doesn't specify a ns"
-  [sym]
-  (if (symbol? sym)
-    (if (namespace sym)
-      sym
-      (symbol (name (ns-name *ns*)) (name sym)))
-    sym))
-
 (defmacro room
+  "Define a room template. The room template is defined as a var in the
+current namespace based on the id, with the natural language name of
+room-name, and a longer description desc. The rest of the arguments
+should be keyword-symbol couplets linking exits to room id (optionally
+namespace-qualified... e.g. town/town-square)."
   [id room-name desc & exits]
   `(def ~id
 	(hash-map

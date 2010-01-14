@@ -13,7 +13,7 @@
   [byte-array]
   (apply str (map #(format "%02x" (bit-and % 0xff)) byte-array)))
 
-(defn- sha-hash
+(defn sha-hash
   "Returns the SHA hash of string s"
   [s]
   (bytes-to-hex-str
