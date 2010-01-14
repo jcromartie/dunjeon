@@ -150,11 +150,9 @@ Comands are:
 (defn main-
   []
   (let [port (nth *command-line-args* 0)]
-    (if (= port "local")
-      (local-game)
       (do
 	(def *main-server* (make-server (Integer. port)))
-	(println "Server started on port" port)))))
+	(println "Server started on port" port))))
 
 (comment
   To start a server at a REPL, run something like the following expression
